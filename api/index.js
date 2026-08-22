@@ -6,6 +6,7 @@ require('dotenv').config();
 const authRoutes = require('../src/routes/auth');
 const chatRoutes = require('../src/routes/chat');
 const conversationRoutes = require('../src/routes/conversations');
+const adminRoutes = require('../src/routes/admin');
 
 const app = express();
 app.use(cors());
@@ -37,6 +38,7 @@ app.use('/api', async (req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Exportar o Express diretamente (sem serverless-http)
 module.exports = app;

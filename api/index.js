@@ -39,4 +39,4 @@ if (require.main === module) {
 }
 
 // Exportar para Vercel
-module.exports.handler = serverless(app);
+module.exports = serverless(app);

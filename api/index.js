@@ -12,31 +12,48 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Conexão com MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log('MongoDB conectado'))
-  .catch(err => console.error('Erro ao conectar MongoDB:', err));
-
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
 
-// Rota de teste
+// Rota de teste que não depende do banco
 app.get('/', (req, res) => {
   res.json({ message: 'AironChat API rodando!' });
 });
 
-// Para desenvolvimento local
-if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-  });
-}
+// Conexão global com cache
+let isConnected = false;
 
-// Exportar para Vercel
-module.exports = serverless(app);
+const connectToDatabase = async () => {
+  if (isConnected) return;
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
+  }
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // timeout de 5 segundos
+      connectTimeoutMS: 5000,
+    });
+    isConnected = true;
+    console.log('MongoDB conectado');
+  } catch (error) {
+    console.error('Erro ao conectar MongoDB:', error.message);
+    throw error;
+  }
+};
+
+// Handler assíncrono que conecta antes de processar
+const handler = async (req, res) => {
+  try {
+    await connectToDatabase();
+    return serverless(app)(req, res);
+  } catch (error) {
+    res.status(500).json({ error: 'Falha na conexão com o banco de dados', detail: error.message });
+  }
+};
+
+module.exports = handler;

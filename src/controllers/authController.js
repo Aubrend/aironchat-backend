@@ -1,64 +1,50 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const { validationResult } = require('express-validator');
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
 exports.register = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'Preencha todos os campos' });
-    }
     const existing = await User.findOne({ $or: [{ email }, { username }] });
     if (existing) {
-      return res.status(400).json({ error: 'Email ou nome de usuário já cadastrado' });
+      return res.status(400).json({ error: 'Email ou nome de utilizador já cadastrado' });
     }
     const user = new User({ username, email, password });
     await user.save();
     const token = generateToken(user._id);
     res.status(201).json({
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        phone: user.phone || '',
-        photoUrl: user.photoUrl || null,
-        role: user.role,
-      },
+      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role },
     });
   } catch (error) {
-    console.error('Erro no registro:', error);
-    res.status(500).json({ error: 'Erro ao registrar usuário' });
+    console.error('Erro no registo:', error);
+    res.status(500).json({ error: 'Erro ao registar utilizador' });
   }
 };
 
 exports.login = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { emailOrUsername, password } = req.body;
-    if (!emailOrUsername || !password) {
-      return res.status(400).json({ error: 'Preencha todos os campos' });
-    }
-    const user = await User.findOne({
-      $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
-    });
+    const user = await User.findOne({ $or: [{ email: emailOrUsername }, { username: emailOrUsername }] });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
     const token = generateToken(user._id);
     res.json({
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        phone: user.phone || '',
-        photoUrl: user.photoUrl || null,
-        role: user.role,
-      },
+      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role },
     });
   } catch (error) {
     console.error('Erro no login:', error);
@@ -69,7 +55,7 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
     res.json({ user });
   } catch (error) {
     console.error('Erro ao obter perfil:', error);
@@ -86,7 +72,7 @@ exports.updateProfile = async (req, res) => {
     if (phone !== undefined) updates.phone = phone;
     if (photoUrl !== undefined) updates.photoUrl = photoUrl;
     const user = await User.findByIdAndUpdate(req.userId, updates, { new: true }).select('-password');
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
     res.json({ user });
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
@@ -97,9 +83,6 @@ exports.updateProfile = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Preencha todos os campos' });
-    }
     const user = await User.findById(req.userId);
     if (!user || !(await user.comparePassword(currentPassword))) {
       return res.status(401).json({ error: 'Senha atual incorreta' });

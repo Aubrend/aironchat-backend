@@ -2,8 +2,8 @@ const Conversation = require('../models/Conversation');
 const Setting = require('../models/Setting');
 const { sendMessageToGroq, getSystemPrompt } = require('../utils/groq');
 const { getLocalResponse } = require('../utils/localAI');
+const { validationResult } = require('express-validator');
 
-// Função para obter chave da Groq do banco ou variável de ambiente
 const getGroqApiKey = async () => {
   const settings = await Setting.findOne();
   if (settings && settings.groq_api_key) {
@@ -13,35 +13,26 @@ const getGroqApiKey = async () => {
 };
 
 exports.sendMessage = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { conversationId, message } = req.body;
-    if (!message || !message.content) {
-      return res.status(400).json({ error: 'Mensagem vazia' });
-    }
-
     let conversation;
     if (conversationId) {
       conversation = await Conversation.findOne({ _id: conversationId, user: req.userId });
       if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
     } else {
-      conversation = new Conversation({
-        user: req.userId,
-        title: message.content.slice(0, 30),
-      });
+      conversation = new Conversation({ user: req.userId, title: message.content.slice(0, 30) });
     }
 
-    const userMessage = {
-      role: 'user',
-      content: message.content,
-      attachments: message.attachments || [],
-      timestamp: Date.now(),
-    };
+    const userMessage = { role: 'user', content: message.content, attachments: message.attachments || [], timestamp: Date.now() };
     conversation.messages.push(userMessage);
     await conversation.save();
 
     let aiReply;
     let usedFallback = false;
-
     try {
       const apiKey = await getGroqApiKey();
       if (!apiKey) throw new Error('Chave da Groq não configurada');
@@ -55,12 +46,7 @@ exports.sendMessage = async (req, res) => {
       usedFallback = true;
     }
 
-    const assistantMessage = {
-      role: 'assistant',
-      content: aiReply,
-      timestamp: Date.now(),
-      usedFallback,
-    };
+    const assistantMessage = { role: 'assistant', content: aiReply, timestamp: Date.now(), usedFallback };
     conversation.messages.push(assistantMessage);
     await conversation.save();
 

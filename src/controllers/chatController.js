@@ -1,5 +1,6 @@
 const Conversation = require('../models/Conversation');
-const { sendMessageToGroq } = require('../utils/groq');
+const { sendMessageToGroq, getSystemPrompt } = require('../utils/groq');
+const { getLocalResponse } = require('../utils/localAI');
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -29,20 +30,25 @@ exports.sendMessage = async (req, res) => {
     await conversation.save();
 
     let aiReply;
+    let usedFallback = false;
+
     try {
+      // Tentar usar a API Groq
       const messagesToSend = conversation.messages
         .filter(m => !m.attachments || m.attachments.length === 0)
         .map(m => ({ role: m.role, content: m.content }));
-      aiReply = await sendMessageToGroq(messagesToSend, 'You are AironChat, a helpful coding assistant.');
+      aiReply = await sendMessageToGroq(messagesToSend, getSystemPrompt());
     } catch (error) {
-      console.error('Erro ao chamar Groq:', error);
-      aiReply = 'Desculpe, ocorreu um erro ao processar sua mensagem.';
+      console.error('Erro ao chamar Groq, usando fallback local:', error.message);
+      aiReply = getLocalResponse(message.content);
+      usedFallback = true;
     }
 
     const assistantMessage = {
       role: 'assistant',
       content: aiReply,
       timestamp: Date.now(),
+      usedFallback,
     };
     conversation.messages.push(assistantMessage);
     await conversation.save();

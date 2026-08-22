@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
 const adminController = require('../controllers/adminController');
+const settingsController = require('../controllers/settingsController');
 
-// Todas as rotas protegidas por auth
-router.use(authMiddleware);
+// Todas as rotas precisam de auth + admin
+router.use(authMiddleware, adminAuth);
 
 // Estatísticas
 router.get('/stats', adminController.getStats);
@@ -18,7 +20,8 @@ router.delete('/users/:userId', adminController.deleteUser);
 // Tornar admin/utilizador
 router.put('/users/:userId/toggle-admin', adminController.toggleAdmin);
 
-// Atualizar configurações (ex: API key, etc)
-router.put('/settings', adminController.updateSettings);
+// Configurações de API
+router.get('/settings', settingsController.getSettings);
+router.put('/settings', settingsController.updateSettings);
 
 module.exports = router;

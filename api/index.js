@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const serverless = require('serverless-http');
 require('dotenv').config();
 
 const authRoutes = require('../src/routes/auth');
@@ -39,4 +38,5 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
 
-module.exports = serverless(app);
+// Exportar o Express diretamente (sem serverless-http)
+module.exports = app;

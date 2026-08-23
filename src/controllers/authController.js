@@ -36,8 +36,8 @@ exports.login = async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { emailOrUsername, password } = req.body;
-    const user = await User.findOne({ $or: [{ email: emailOrUsername }, { username: emailOrUsername }] });
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }

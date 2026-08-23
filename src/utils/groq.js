@@ -23,29 +23,38 @@ const sendMessageToGroq = async (messages, systemPrompt = '', apiKey) => {
   const key = apiKey || process.env.GROQ_API_KEY;
   if (!key) throw new Error('GROQ_API_KEY não configurada');
 
-  const response = await axios.post(
-    GROQ_API_URL,
-    {
-      model: 'groq/compound', // modelo válido
-      messages: [
-        { role: 'system', content: systemPrompt || getSystemPrompt() },
-        ...messages.map(m => ({ role: m.role, content: m.content })),
-      ],
-      temperature: 0.7,
-      max_tokens: 4096,
-      top_p: 1,
-      stream: false,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: 60000,
-    }
-  );
+  const payload = {
+    model: 'groq/compound',
+    messages: [
+      { role: 'system', content: systemPrompt || getSystemPrompt() },
+      ...messages.map(m => ({ role: m.role, content: m.content })),
+    ],
+    temperature: 0.7,
+    max_tokens: 4096,
+    top_p: 1,
+    stream: false,
+  };
 
-  return response.data.choices[0].message.content;
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await axios.post(GROQ_API_URL, payload, {
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000, // 2 minutos
+      });
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      lastError = error;
+      console.error(`Tentativa ${attempt} falhou:`, error.message);
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // espera antes de tentar novamente
+      }
+    }
+  }
+  throw lastError;
 };
 
 module.exports = { sendMessageToGroq, getSystemPrompt };

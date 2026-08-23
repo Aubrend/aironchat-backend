@@ -26,7 +26,7 @@ exports.sendMessage = async (req, res) => {
       // Usar diretamente a variável de ambiente (nova chave)
       const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) throw new Error('Chave da Groq não configurada');
-      console.log('Usando chave da Groq do ambiente');
+      console.log('Chamando Groq com chave do ambiente');
       const messagesToSend = conversation.messages
         .filter(m => !m.attachments || m.attachments.length === 0)
         .map(m => ({ role: m.role, content: m.content }));

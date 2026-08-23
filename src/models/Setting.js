@@ -5,7 +5,6 @@ const settingSchema = new mongoose.Schema({
   openai_api_key: { type: String, default: '' },
   deepseek_api_key: { type: String, default: '' },
   anthropic_api_key: { type: String, default: '' },
-  // Adicionar outras chaves conforme necessário
   updatedAt: { type: Date, default: Date.now }
 });
 

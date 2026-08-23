@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const serverless = require('serverless-http');
 require('dotenv').config();
 
-const User = require('../src/models/User');
 const authRoutes = require('../src/routes/auth');
 const chatRoutes = require('../src/routes/chat');
 const conversationRoutes = require('../src/routes/conversations');
@@ -24,21 +24,6 @@ const connectToDatabase = async () => {
     connectTimeoutMS: 5000,
   });
   isConnected = true;
-  // Seed do admin
-  try {
-    const admin = await User.findOne({ email: 'admin@aironchat.com' });
-    if (!admin) {
-      await User.create({ username: 'admin', email: 'admin@aironchat.com', password: 'Airon2024!', role: 'admin' });
-      console.log('Admin criado');
-    } else {
-      admin.password = 'Airon2024!';
-      admin.role = 'admin';
-      await admin.save();
-      console.log('Admin atualizado');
-    }
-  } catch (seedError) {
-    console.error('Erro no seed do admin:', seedError.message);
-  }
 };
 
 app.use('/api', async (req, res, next) => {
@@ -60,8 +45,8 @@ app.get('/', (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('Erro não tratado:', err.stack);
+  console.error(err.stack);
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-module.exports = app;
+module.exports = serverless(app);

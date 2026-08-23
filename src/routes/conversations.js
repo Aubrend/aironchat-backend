@@ -3,8 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../middleware/auth');
 const conversationController = require('../controllers/conversationController');
 
-router.use(authMiddleware); // <-- garantir que é chamado antes de tudo
-
+router.use(authMiddleware);
 router.get('/', conversationController.getConversations);
 router.post('/', conversationController.createConversation);
 router.put('/:id', conversationController.updateConversation);

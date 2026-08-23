@@ -2,30 +2,25 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 const generateToken = (userId) => {
-  const secret = process.env.JWT_SECRET || 'segredoSuperSecretoAironChat2024!';
-  return jwt.sign({ userId }, secret, { expiresIn: '7d' });
+  return jwt.sign({ userId }, process.env.JWT_SECRET || 'segredoSuperSecretoAironChat2024!', { expiresIn: '7d' });
 };
 
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'Preencha todos os campos' });
-    }
+    if (!username || !email || !password) return res.status(400).json({ error: 'Preencha todos os campos' });
     const existing = await User.findOne({ $or: [{ email }, { username }] });
-    if (existing) {
-      return res.status(400).json({ error: 'Email ou nome de utilizador já cadastrado' });
-    }
+    if (existing) return res.status(400).json({ error: 'Email ou nome de utilizador já cadastrado' });
     const user = new User({ username, email, password });
     await user.save();
     const token = generateToken(user._id);
     res.status(201).json({
       token,
-      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role },
+      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role }
     });
   } catch (error) {
-    console.error('Erro no registo:', error.message);
-    res.status(500).json({ error: 'Erro ao registar utilizador', detail: error.message });
+    console.error('Erro no registo:', error);
+    res.status(500).json({ error: 'Erro ao registar utilizador' });
   }
 };
 
@@ -33,17 +28,15 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ error: 'Credenciais inválidas' });
-    }
+    if (!user || !(await user.comparePassword(password))) return res.status(401).json({ error: 'Credenciais inválidas' });
     const token = generateToken(user._id);
     res.json({
       token,
-      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role },
+      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role }
     });
   } catch (error) {
-    console.error('Erro no login:', error.message);
-    res.status(500).json({ error: 'Erro ao fazer login', detail: error.message });
+    console.error('Erro no login:', error);
+    res.status(500).json({ error: 'Erro ao fazer login' });
   }
 };
 
@@ -53,7 +46,6 @@ exports.getProfile = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
     res.json({ user });
   } catch (error) {
-    console.error('Erro ao obter perfil:', error.message);
     res.status(500).json({ error: 'Erro ao obter perfil' });
   }
 };
@@ -70,7 +62,6 @@ exports.updateProfile = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
     res.json({ user });
   } catch (error) {
-    console.error('Erro ao atualizar perfil:', error.message);
     res.status(500).json({ error: 'Erro ao atualizar perfil' });
   }
 };
@@ -79,17 +70,12 @@ exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const user = await User.findById(req.userId);
-    if (!user || !(await user.comparePassword(currentPassword))) {
-      return res.status(401).json({ error: 'Senha atual incorreta' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
-    }
+    if (!user || !(await user.comparePassword(currentPassword))) return res.status(401).json({ error: 'Senha atual incorreta' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
     user.password = newPassword;
     await user.save();
     res.json({ message: 'Senha alterada com sucesso' });
   } catch (error) {
-    console.error('Erro ao mudar senha:', error.message);
     res.status(500).json({ error: 'Erro ao mudar senha' });
   }
 };

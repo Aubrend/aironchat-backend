@@ -45,8 +45,13 @@ exports.updateConversation = async (req, res) => {
 exports.deleteConversation = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('Tentando eliminar conversa ID:', id, 'user:', req.userId);
     const conversation = await Conversation.findOneAndDelete({ _id: id, user: req.userId });
-    if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
+    if (!conversation) {
+      console.log('Conversa não encontrada ou não pertence ao utilizador');
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+    console.log('Conversa eliminada com sucesso:', id);
     res.json({ message: 'Conversa eliminada' });
   } catch (error) {
     console.error('Erro ao eliminar conversa:', error.message);

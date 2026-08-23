@@ -5,7 +5,7 @@ exports.getConversations = async (req, res) => {
     const conversations = await Conversation.find({ user: req.userId }).sort({ updatedAt: -1 });
     res.json({ conversations });
   } catch (error) {
-    console.error('Erro ao listar conversas:', error);
+    console.error('Erro ao listar conversas:', error.message);
     res.status(500).json({ error: 'Erro ao listar conversas' });
   }
 };
@@ -17,7 +17,7 @@ exports.createConversation = async (req, res) => {
     await conversation.save();
     res.status(201).json({ conversation });
   } catch (error) {
-    console.error('Erro ao criar conversa:', error);
+    console.error('Erro ao criar conversa:', error.message);
     res.status(500).json({ error: 'Erro ao criar conversa' });
   }
 };
@@ -29,11 +29,15 @@ exports.updateConversation = async (req, res) => {
     const updates = {};
     if (title !== undefined) updates.title = title;
     if (messages !== undefined) updates.messages = messages;
-    const conversation = await Conversation.findByIdAndUpdate(id, updates, { new: true });
+    const conversation = await Conversation.findOneAndUpdate(
+      { _id: id, user: req.userId },
+      updates,
+      { new: true }
+    );
     if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
     res.json({ conversation });
   } catch (error) {
-    console.error('Erro ao atualizar conversa:', error);
+    console.error('Erro ao atualizar conversa:', error.message);
     res.status(500).json({ error: 'Erro ao atualizar conversa' });
   }
 };
@@ -41,10 +45,11 @@ exports.updateConversation = async (req, res) => {
 exports.deleteConversation = async (req, res) => {
   try {
     const { id } = req.params;
-    await Conversation.findByIdAndDelete(id);
+    const conversation = await Conversation.findOneAndDelete({ _id: id, user: req.userId });
+    if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
     res.json({ message: 'Conversa eliminada' });
   } catch (error) {
-    console.error('Erro ao eliminar conversa:', error);
+    console.error('Erro ao eliminar conversa:', error.message);
     res.status(500).json({ error: 'Erro ao eliminar conversa' });
   }
 };

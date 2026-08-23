@@ -6,10 +6,14 @@ const { getLocalResponse } = require('../utils/localAI');
 const getGroqApiKey = async () => {
   try {
     const settings = await Setting.findOne();
-    if (settings && settings.groq_api_key) return settings.groq_api_key;
+    if (settings && settings.groq_api_key) {
+      console.log('Usando chave da Groq do banco');
+      return settings.groq_api_key;
+    }
   } catch (error) {
     console.error('Erro ao buscar chave no banco:', error.message);
   }
+  console.log('Usando chave da Groq do ambiente');
   return process.env.GROQ_API_KEY;
 };
 
@@ -23,7 +27,9 @@ exports.sendMessage = async (req, res) => {
     let conversation;
     if (conversationId) {
       conversation = await Conversation.findOne({ _id: conversationId, user: req.userId });
-      if (!conversation) conversation = new Conversation({ user: req.userId, title: message.content.slice(0, 30) });
+      if (!conversation) {
+        conversation = new Conversation({ user: req.userId, title: message.content.slice(0, 30) });
+      }
     } else {
       conversation = new Conversation({ user: req.userId, title: message.content.slice(0, 30) });
     }
@@ -36,12 +42,14 @@ exports.sendMessage = async (req, res) => {
     try {
       const apiKey = await getGroqApiKey();
       if (!apiKey) throw new Error('Chave da Groq não configurada');
+      console.log('Chave da Groq encontrada, chamando IA...');
       const messagesToSend = conversation.messages
         .filter(m => !m.attachments || m.attachments.length === 0)
         .map(m => ({ role: m.role, content: m.content }));
       aiReply = await sendMessageToGroq(messagesToSend, getSystemPrompt(), apiKey);
+      console.log('Resposta da Groq recebida');
     } catch (error) {
-      console.error('Falha na Groq, usando local:', error.message);
+      console.error('Erro na Groq, usando fallback local:', error.message);
       aiReply = getLocalResponse(message.content);
     }
 

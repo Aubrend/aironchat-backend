@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, default: '' },
   photoUrl: { type: String, default: null },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  memory: { type: String, default: '' }, // Resumo de preferências e informações
   createdAt: { type: Date, default: Date.now }
 });
 

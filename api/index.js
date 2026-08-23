@@ -6,6 +6,11 @@ const compression = require('compression');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+// Fallback para JWT_SECRET
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'segredoSuperSecretoAironChat2024!';
+}
+
 const User = require('../src/models/User');
 const authRoutes = require('../src/routes/auth');
 const chatRoutes = require('../src/routes/chat');
@@ -42,14 +47,22 @@ app.use((err, req, res, next) => {
 let isConnected = false;
 
 const seedAdmin = async () => {
-  const admin = await User.findOne({ username: 'admin' });
-  if (!admin) {
-    await User.create({ username: 'admin', email: 'admin@aironchat.com', password: 'Airon2024!', role: 'admin' });
-    console.log('Admin criado com sucesso');
-  } else if (admin.email !== 'admin@aironchat.com') {
-    admin.email = 'admin@aironchat.com';
+  try {
+    let admin = await User.findOne({ email: 'admin@aironchat.com' });
+    if (!admin) {
+      admin = new User({ username: 'admin', email: 'admin@aironchat.com', password: 'Airon2024!', role: 'admin' });
+      console.log('Admin criado com sucesso');
+    } else {
+      admin.username = 'admin';
+      admin.email = 'admin@aironchat.com';
+      admin.password = 'Airon2024!';
+      admin.role = 'admin';
+      console.log('Admin actualizado');
+    }
     await admin.save();
-    console.log('Email do admin atualizado para admin@aironchat.com');
+    console.log('Admin pronto: admin@aironchat.com / Airon2024!');
+  } catch (error) {
+    console.error('Erro no seedAdmin:', error);
   }
 };
 

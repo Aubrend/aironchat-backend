@@ -1,4 +1,4 @@
-// Base de conhecimento local para fallback
+// Base de conhecimento local para fallback (formatação limpa)
 const localResponses = [
   {
     keywords: ['ola', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'eae', 'opa'],

@@ -2,7 +2,7 @@
 const localResponses = [
   {
     keywords: ['ola', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'eae', 'opa'],
-    response: 'Olá! Eu sou o Airon, criado por Luzembo Fernando. Como posso ajudar-te?'
+    response: 'Olá! Eu sou o Airon, criado por Luzembo Fernando. Como posso ajudar-te hoje?'
   },
   {
     keywords: ['quem te criou', 'criador', 'quem fez voce', 'origem'],

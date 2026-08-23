@@ -2,32 +2,7 @@ const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 const { sendMessageToGroq, getSystemPrompt } = require('../utils/groq');
 const { getLocalResponse } = require('../utils/localAI');
-
-// Função para construir contexto de conversas passadas relevantes
-const buildPastContext = async (userId, currentQuery, currentConversationId) => {
-  try {
-    const conversations = await Conversation.find({ user: userId }).sort({ updatedAt: -1 }).limit(10);
-    let context = '';
-    for (const conv of conversations) {
-      if (conv._id.toString() === currentConversationId) continue; // ignora a conversa atual
-      // Extrair título e últimas mensagens
-      const lastMessages = conv.messages.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
-      if (lastMessages) {
-        context += `Conversa "${conv.title}" (${new Date(conv.updatedAt).toLocaleString()}):\n${lastMessages}\n\n`;
-      }
-    }
-    return context || 'Sem conversas anteriores.';
-  } catch (error) {
-    console.error('Erro ao construir contexto:', error);
-    return '';
-  }
-};
-
-// Função para extrair preferências do utilizador (memory)
-const getUserMemory = async (userId) => {
-  const user = await User.findById(userId);
-  return user && user.memory ? user.memory : '';
-};
+const { saveConversationMemory, getRelevantMemory } = require('../utils/memory');
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -50,12 +25,9 @@ exports.sendMessage = async (req, res) => {
 
     let aiReply;
     try {
-      // Obter memória do utilizador e contexto de conversas passadas
-      const userMemory = await getUserMemory(req.userId);
-      const pastContext = await buildPastContext(req.userId, message.content, conversation._id);
+      const relevantMemory = await getRelevantMemory(req.userId, message.content, conversation._id);
 
-      // System prompt enriquecido
-      const enhancedPrompt = `${getSystemPrompt()}\n\nUSER MEMORY:\n${userMemory || 'Nenhuma informação armazenada ainda.'}\n\nPAST CONVERSATIONS CONTEXT:\n${pastContext}`;
+      const enhancedPrompt = `${getSystemPrompt()}\n\nRELEVANT PAST MEMORIES:\n${relevantMemory || 'No relevant memories.'}`;
 
       const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) throw new Error('Chave da Groq não configurada');
@@ -65,7 +37,7 @@ exports.sendMessage = async (req, res) => {
         .map(m => ({ role: m.role, content: m.content }));
 
       aiReply = await sendMessageToGroq(messagesToSend, enhancedPrompt, apiKey);
-      console.log('Resposta da Groq com memória recebida');
+      console.log('Resposta da Groq com memória avançada recebida');
     } catch (error) {
       console.error('Erro na Groq, usando fallback local:', error.message);
       aiReply = getLocalResponse(message.content);
@@ -75,15 +47,9 @@ exports.sendMessage = async (req, res) => {
     conversation.messages.push(assistantMessage);
     await conversation.save();
 
-    // Atualizar memória do utilizador (simples: armazenar preferências mencionadas)
-    // Pode ser melhorado com análise de sentimentos ou extração de entidades; por agora, salvar primeiras 500 caracteres de cada resposta para histórico.
-    try {
-      await User.updateOne(
-        { _id: req.userId },
-        { $set: { memory: (userMemory ? userMemory + '\n' : '') + `User said: ${message.content.slice(0, 200)}` } }
-      );
-    } catch (memErr) {
-      console.error('Erro ao atualizar memória:', memErr);
+    // Salvar memória da conversa quando houver pelo menos 2 mensagens
+    if (conversation.messages.length >= 4) {
+      await saveConversationMemory(req.userId, conversation._id);
     }
 
     res.json({ conversation, reply: assistantMessage });

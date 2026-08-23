@@ -26,6 +26,10 @@ const connectToDatabase = async () => {
   isConnected = true;
 };
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
 app.use('/api', async (req, res, next) => {
   try {
     await connectToDatabase();

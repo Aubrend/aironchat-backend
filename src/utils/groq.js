@@ -13,7 +13,7 @@ const sendMessageToGroq = async (messages, systemPrompt = '', apiKey) => {
   const response = await axios.post(
     GROQ_API_URL,
     {
-      model: 'llama-3.1-70b-versatile', // modelo válido e poderoso
+      model: 'groq/compound', // modelo válido listado na API
       messages: [
         { role: 'system', content: systemPrompt || getSystemPrompt() },
         ...messages.map(m => ({ role: m.role, content: m.content })),

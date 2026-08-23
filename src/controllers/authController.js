@@ -1,6 +1,5 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator');
 
 const generateToken = (userId) => {
   const secret = process.env.JWT_SECRET || 'segredoSuperSecretoAironChat2024!';
@@ -8,12 +7,11 @@ const generateToken = (userId) => {
 };
 
 exports.register = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
   try {
     const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Preencha todos os campos' });
+    }
     const existing = await User.findOne({ $or: [{ email }, { username }] });
     if (existing) {
       return res.status(400).json({ error: 'Email ou nome de utilizador já cadastrado' });
@@ -32,10 +30,6 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -53,4 +47,49 @@ exports.login = async (req, res) => {
   }
 };
 
-// ... (restante igual ao anterior)
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-password');
+    if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
+    res.json({ user });
+  } catch (error) {
+    console.error('Erro ao obter perfil:', error.message);
+    res.status(500).json({ error: 'Erro ao obter perfil' });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { username, email, phone, photoUrl } = req.body;
+    const updates = {};
+    if (username) updates.username = username;
+    if (email) updates.email = email;
+    if (phone !== undefined) updates.phone = phone;
+    if (photoUrl !== undefined) updates.photoUrl = photoUrl;
+    const user = await User.findByIdAndUpdate(req.userId, updates, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
+    res.json({ user });
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error.message);
+    res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.userId);
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
+    }
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Senha alterada com sucesso' });
+  } catch (error) {
+    console.error('Erro ao mudar senha:', error.message);
+    res.status(500).json({ error: 'Erro ao mudar senha' });
+  }
+};

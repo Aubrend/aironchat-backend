@@ -2,7 +2,6 @@ const Conversation = require('../models/Conversation');
 const Setting = require('../models/Setting');
 const { sendMessageToGroq, getSystemPrompt } = require('../utils/groq');
 const { getLocalResponse } = require('../utils/localAI');
-const { validationResult } = require('express-validator');
 
 const getGroqApiKey = async () => {
   try {
@@ -15,12 +14,11 @@ const getGroqApiKey = async () => {
 };
 
 exports.sendMessage = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
   try {
     const { conversationId, message } = req.body;
-    if (!message || !message.content) return res.status(400).json({ error: 'Mensagem vazia' });
+    if (!message || !message.content) {
+      return res.status(400).json({ error: 'Mensagem vazia' });
+    }
 
     let conversation;
     if (conversationId) {
@@ -38,7 +36,9 @@ exports.sendMessage = async (req, res) => {
     try {
       const apiKey = await getGroqApiKey();
       if (!apiKey) throw new Error('Chave da Groq não configurada');
-      const messagesToSend = conversation.messages.filter(m => !m.attachments || m.attachments.length === 0).map(m => ({ role: m.role, content: m.content }));
+      const messagesToSend = conversation.messages
+        .filter(m => !m.attachments || m.attachments.length === 0)
+        .map(m => ({ role: m.role, content: m.content }));
       aiReply = await sendMessageToGroq(messagesToSend, getSystemPrompt(), apiKey);
     } catch (error) {
       console.error('Falha na Groq, usando local:', error.message);

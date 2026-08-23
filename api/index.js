@@ -96,4 +96,21 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
+// Rota de diagnóstico (temporária)
+app.get('/api/debug', async (req, res) => {
+  try {
+    await connectToDatabase();
+    const userCount = await User.countDocuments();
+    const admin = await User.findOne({ email: 'admin@aironchat.com' }).select('-password');
+    res.json({
+      mongoConnected: mongoose.connection.readyState === 1,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      userCount,
+      admin: admin ? { email: admin.email, username: admin.username, role: admin.role } : null,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = app;

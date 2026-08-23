@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error('Erro no login:', error.message, error.stack);
-    res.status(500).json({ error: 'Erro ao fazer login' });
+    res.status(500).json({ error: 'Erro no servidor', detail: error.message });
   }
 };
 

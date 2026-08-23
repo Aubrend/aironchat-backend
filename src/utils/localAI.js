@@ -1,20 +1,19 @@
-// Base de conhecimento local para fallback (formatação limpa)
-const localResponses = [
+// Base de conhecimento local para fallback (comportamento restrito)
+const creatorResponses = [
   {
-    keywords: ['ola', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'eae', 'opa'],
-    response: 'Olá! Eu sou o Airon, criado por Luzembo Fernando. Como posso ajudar-te hoje?'
-  },
-  {
-    keywords: ['quem te criou', 'criador', 'quem fez voce', 'origem'],
+    keywords: ['quem te criou', 'criador', 'quem fez voce', 'origem', 'quem te desenvolveu'],
     response: 'Fui criado por Luzembo Fernando, Engenheiro de Software e Cientista da Computação, natural de Luanda, Angola. Ele é o fundador da Aubrend Corporation.'
   },
   {
     keywords: ['empresa', 'organizacao', 'aubrend'],
     response: 'Aubrend Corporation é a organização por trás de mim, dedicada a criar soluções de IA inovadoras para o mundo.'
-  },
+  }
+];
+
+const generalResponses = [
   {
-    keywords: ['tecnologias', 'framework', 'linguagem', 'react', 'node', 'python', 'api'],
-    response: 'Utilizo uma arquitetura neural proprietária desenvolvida pela Aubrend Corporation. Não posso revelar detalhes técnicos.'
+    keywords: ['ola', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'eae', 'opa'],
+    response: 'Olá! Como posso ajudar-te hoje?'
   },
   {
     keywords: ['site responsivo', 'html', 'css', 'javascript', 'react'],
@@ -38,21 +37,35 @@ const localResponses = [
   }
 ];
 
-const defaultResponse = 'Desculpe, não entendi completamente. Podes reformular a pergunta? Estou a usar o meu conhecimento local agora.';
+const defaultResponse = 'Desculpe, não entendi completamente. Podes reformular a pergunta?';
 
 const getLocalResponse = (text) => {
   const lower = text.toLowerCase();
-  for (const item of localResponses) {
+
+  // Verificar primeiro se pergunta sobre criador/empresa
+  for (const item of creatorResponses) {
     if (item.keywords.some(kw => lower.includes(kw))) {
       return item.response;
     }
   }
+
+  // Depois verificar respostas gerais
+  for (const item of generalResponses) {
+    if (item.keywords.some(kw => lower.includes(kw))) {
+      return item.response;
+    }
+  }
+
+  // Se pedir código
   if (lower.includes('codigo') || lower.includes('gerar')) {
     return 'Posso gerar código simples. Diz a linguagem e o que pretendes.';
   }
+
+  // Se pedir ajuda
   if (lower.includes('ajuda') || lower.includes('help')) {
     return 'Posso ajudar com programação, exemplos de código e dúvidas comuns.';
   }
+
   return defaultResponse;
 };
 

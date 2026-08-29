@@ -1,4 +1,6 @@
-// Base de conhecimento local para fallback (sem markdown pesado)
+const { sanitizeResponse } = require('./sanitize');
+
+// Base de conhecimento local (sem markdown pesado)
 const localResponses = [
   {
     keywords: ['ola', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'eae', 'opa'],
@@ -44,7 +46,7 @@ const getLocalResponse = (text) => {
   const lower = text.toLowerCase();
   for (const item of localResponses) {
     if (item.keywords.some(kw => lower.includes(kw))) {
-      return item.response;
+      return sanitizeResponse(item.response);
     }
   }
   if (lower.includes('codigo') || lower.includes('gerar')) {
@@ -53,7 +55,7 @@ const getLocalResponse = (text) => {
   if (lower.includes('ajuda') || lower.includes('help')) {
     return 'Posso ajudar com programação, exemplos de código e dúvidas comuns. 📘';
   }
-  return defaultResponse;
+  return sanitizeResponse(defaultResponse);
 };
 
 module.exports = { getLocalResponse };

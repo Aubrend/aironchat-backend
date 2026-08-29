@@ -2,7 +2,7 @@ const Conversation = require('../models/Conversation');
 
 exports.getConversations = async (req, res) => {
   try {
-    const conversations = await Conversation.find({ user: req.userId }).sort({ updatedAt: -1 });
+    const conversations = await Conversation.findConversationsByUser(req.userId);
     res.json({ conversations });
   } catch (error) {
     console.error('Erro ao listar conversas:', error);
@@ -13,8 +13,7 @@ exports.getConversations = async (req, res) => {
 exports.createConversation = async (req, res) => {
   try {
     const { title = 'Nova Conversa' } = req.body;
-    const conversation = new Conversation({ user: req.userId, title });
-    await conversation.save();
+    const conversation = await Conversation.createConversation(req.userId, title);
     res.status(201).json({ conversation });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar conversa' });
@@ -28,7 +27,7 @@ exports.updateConversation = async (req, res) => {
     const updates = {};
     if (title !== undefined) updates.title = title;
     if (messages !== undefined) updates.messages = messages;
-    const conversation = await Conversation.findOneAndUpdate({ _id: id, user: req.userId }, updates, { new: true });
+    const conversation = await Conversation.updateConversation(id, req.userId, updates);
     if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
     res.json({ conversation });
   } catch (error) {
@@ -39,13 +38,9 @@ exports.updateConversation = async (req, res) => {
 exports.deleteConversation = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('Eliminando conversa:', id, 'user:', req.userId);
-    const conversation = await Conversation.findOneAndDelete({ _id: id, user: req.userId });
-    if (!conversation) return res.status(404).json({ error: 'Conversa não encontrada' });
-    console.log('Conversa eliminada:', id);
+    await Conversation.deleteConversation(id, req.userId);
     res.json({ message: 'Conversa eliminada' });
   } catch (error) {
-    console.error('Erro ao eliminar conversa:', error);
     res.status(500).json({ error: 'Erro ao eliminar conversa' });
   }
 };

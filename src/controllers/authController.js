@@ -1,5 +1,6 @@
-const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || 'segredoSuperSecretoAironChat2024!', { expiresIn: '7d' });
@@ -9,14 +10,16 @@ exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
     if (!username || !email || !password) return res.status(400).json({ error: 'Preencha todos os campos' });
-    const existing = await User.findOne({ $or: [{ email }, { username }] });
+
+    const existing = await User.findUserByEmail(email) || await User.findUserByUsername(username);
     if (existing) return res.status(400).json({ error: 'Email ou nome de utilizador já cadastrado' });
-    const user = new User({ username, email, password });
-    await user.save();
-    const token = generateToken(user._id);
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.createUser({ username, email, password: hashedPassword });
+    const token = generateToken(user.id);
     res.status(201).json({
       token,
-      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role }
+      user: { id: user.id, username: user.username, email: user.email, phone: user.phone, photoUrl: user.photo_url, role: user.role }
     });
   } catch (error) {
     console.error('Erro no registo:', error);
@@ -27,12 +30,16 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user || !(await user.comparePassword(password))) return res.status(401).json({ error: 'Credenciais inválidas' });
-    const token = generateToken(user._id);
+    const user = await User.findUserByEmail(email);
+    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Credenciais inválidas' });
+
+    const token = generateToken(user.id);
     res.json({
       token,
-      user: { id: user._id, username: user.username, email: user.email, phone: user.phone || '', photoUrl: user.photoUrl || null, role: user.role }
+      user: { id: user.id, username: user.username, email: user.email, phone: user.phone, photoUrl: user.photo_url, role: user.role }
     });
   } catch (error) {
     console.error('Erro no login:', error);
@@ -42,9 +49,9 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    const user = await User.findUserById(req.userId);
     if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
-    res.json({ user });
+    res.json({ user: { id: user.id, username: user.username, email: user.email, phone: user.phone, photoUrl: user.photo_url, role: user.role } });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao obter perfil' });
   }
@@ -57,10 +64,10 @@ exports.updateProfile = async (req, res) => {
     if (username) updates.username = username;
     if (email) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
-    if (photoUrl !== undefined) updates.photoUrl = photoUrl;
-    const user = await User.findByIdAndUpdate(req.userId, updates, { new: true }).select('-password');
+    if (photoUrl !== undefined) updates.photo_url = photoUrl;
+    const user = await User.updateUser(req.userId, updates);
     if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
-    res.json({ user });
+    res.json({ user: { id: user.id, username: user.username, email: user.email, phone: user.phone, photoUrl: user.photo_url, role: user.role } });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar perfil' });
   }
@@ -69,11 +76,14 @@ exports.updateProfile = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.userId);
-    if (!user || !(await user.comparePassword(currentPassword))) return res.status(401).json({ error: 'Senha atual incorreta' });
-    if (newPassword.length < 6) return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
-    user.password = newPassword;
-    await user.save();
+    const user = await User.findUserById(req.userId);
+    if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Senha atual incorreta' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await User.updateUser(req.userId, { password: hashed });
     res.json({ message: 'Senha alterada com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao mudar senha' });

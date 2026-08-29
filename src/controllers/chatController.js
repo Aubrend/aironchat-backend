@@ -3,21 +3,6 @@ const User = require('../models/User');
 const { sendMessageToGroq, getSystemPrompt } = require('../utils/groq');
 const { getLocalResponse } = require('../utils/localAI');
 
-const buildPastContext = async (userId, currentConversationId) => {
-  try {
-    const conversations = await Conversation.find({ user: userId }).sort({ updatedAt: -1 }).limit(10);
-    let context = '';
-    for (const conv of conversations) {
-      if (conv._id.toString() === currentConversationId) continue;
-      const lastMessages = conv.messages.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
-      if (lastMessages) context += `Conversa "${conv.title}":\n${lastMessages}\n\n`;
-    }
-    return context || 'Sem conversas anteriores.';
-  } catch (error) {
-    return '';
-  }
-};
-
 exports.sendMessage = async (req, res) => {
   try {
     const { conversationId, message } = req.body;
@@ -25,36 +10,34 @@ exports.sendMessage = async (req, res) => {
 
     let conversation;
     if (conversationId) {
-      conversation = await Conversation.findOne({ _id: conversationId, user: req.userId });
-      if (!conversation) conversation = new Conversation({ user: req.userId, title: message.content.slice(0, 30) });
+      conversation = await Conversation.findConversationByIdAndUser(conversationId, req.userId);
+      if (!conversation) conversation = await Conversation.createConversation(req.userId, message.content.slice(0, 30));
     } else {
-      conversation = new Conversation({ user: req.userId, title: message.content.slice(0, 30) });
+      conversation = await Conversation.createConversation(req.userId, message.content.slice(0, 30));
     }
 
-    const userMessage = { role: 'user', content: message.content, attachments: message.attachments || [], timestamp: Date.now() };
-    conversation.messages.push(userMessage);
-    await conversation.save();
+    const messages = conversation.messages || [];
+    messages.push({ role: 'user', content: message.content, attachments: message.attachments || [], timestamp: Date.now() });
+    await Conversation.updateConversation(conversation.id, req.userId, { messages });
 
     let aiReply;
     try {
-      const user = await User.findById(req.userId);
+      const user = await User.findUserById(req.userId);
       const userMemory = user?.memory || '';
-      const pastContext = await buildPastContext(req.userId, conversation._id);
-      const enhancedPrompt = `${getSystemPrompt()}\n\nUSER MEMORY:\n${userMemory}\n\nPAST CONVERSATIONS CONTEXT:\n${pastContext}`;
       const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) throw new Error('Chave da Groq não configurada');
-      const messagesToSend = conversation.messages.filter(m => !m.attachments || m.attachments.length === 0).map(m => ({ role: m.role, content: m.content }));
-      aiReply = await sendMessageToGroq(messagesToSend, enhancedPrompt, apiKey);
+      const messagesToSend = messages.filter(m => !m.attachments || m.attachments.length === 0).map(m => ({ role: m.role, content: m.content }));
+      const prompt = `${getSystemPrompt()}\n\nUSER MEMORY:\n${userMemory}`;
+      aiReply = await sendMessageToGroq(messagesToSend, prompt, apiKey);
     } catch (error) {
       console.error('Erro na Groq, usando fallback local:', error.message);
       aiReply = getLocalResponse(message.content);
     }
 
-    const assistantMessage = { role: 'assistant', content: aiReply, timestamp: Date.now() };
-    conversation.messages.push(assistantMessage);
-    await conversation.save();
+    messages.push({ role: 'assistant', content: aiReply, timestamp: Date.now() });
+    await Conversation.updateConversation(conversation.id, req.userId, { messages });
 
-    res.json({ conversation, reply: assistantMessage });
+    res.json({ conversation, reply: { role: 'assistant', content: aiReply, timestamp: Date.now() } });
   } catch (error) {
     console.error('Erro geral no chat:', error);
     res.status(500).json({ error: 'Erro ao processar mensagem' });

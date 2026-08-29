@@ -34,10 +34,10 @@ const findUserById = async (id) => {
 const createUser = async (user) => {
   const { username, email, password, phone, photo_url, role } = user;
   const result = await pool.query(
-    `INSERT INTO users (username, email, password, phone, photo_url, role)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO users (username, email, password, phone, photo_url, role, memory)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [username, email, password, phone || '', photo_url || null, role || 'user']
+    [username, email, password, phone || '', photo_url || null, role || 'user', '']
   );
   return result.rows[0];
 };

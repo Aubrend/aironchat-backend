@@ -4,12 +4,9 @@ const { sendMessageToGroq, getSystemPrompt } = require('../utils/groq');
 const { getLocalResponse } = require('../utils/localAI');
 const { sanitizeResponse } = require('../utils/sanitize');
 
-// Função para extrair informações simples da mensagem do utilizador
 const extractMemoryFacts = (content) => {
   const facts = [];
   const lower = content.toLowerCase();
-
-  // Exemplo: detetar preferências
   if (lower.includes('meu nome é') || lower.includes('chamo-me')) {
     const match = content.match(/meu nome é\s+([^,\.]+)|chamo-me\s+([^,\.]+)/i);
     if (match) facts.push(`Nome do utilizador: ${match[1] || match[2]}`);
@@ -17,11 +14,6 @@ const extractMemoryFacts = (content) => {
   if (lower.includes('gosto de') || lower.includes('prefiro')) {
     facts.push(`Preferência: ${content}`);
   }
-  if (lower.includes('trabalho com') || lower.includes('sou desenvolvedor')) {
-    facts.push(`Profissão: ${content}`);
-  }
-  // Pode ser estendido com mais regras
-
   return facts;
 };
 
@@ -30,11 +22,12 @@ exports.sendMessage = async (req, res) => {
     const { conversationId, message } = req.body;
     if (!message || !message.content) return res.status(400).json({ error: 'Mensagem vazia' });
 
-    // Buscar ou criar conversa
     let conversation;
     if (conversationId) {
       conversation = await Conversation.findConversationByIdAndUser(conversationId, req.userId);
-      if (!conversation) conversation = await Conversation.createConversation(req.userId, message.content.slice(0, 30));
+      if (!conversation) {
+        conversation = await Conversation.createConversation(req.userId, message.content.slice(0, 30));
+      }
     } else {
       conversation = await Conversation.createConversation(req.userId, message.content.slice(0, 30));
     }
@@ -43,9 +36,15 @@ exports.sendMessage = async (req, res) => {
 
     const userMessage = { role: 'user', content: message.content, attachments: message.attachments || [], timestamp: Date.now() };
     conversation.messages.push(userMessage);
-    await Conversation.updateConversation(conversation.id, req.userId, { messages: conversation.messages });
 
-    // Carregar memória persistente do utilizador
+    // Atualizar título se for a primeira mensagem e o título ainda for "Nova Conversa"
+    if (conversation.messages.length === 1) {
+      conversation.title = message.content.slice(0, 30);
+    }
+
+    await Conversation.updateConversation(conversation.id, req.userId, { messages: conversation.messages, title: conversation.title });
+
+    // Extrair memória
     const user = await User.findUserById(req.userId);
     let memory = user?.memory || '';
     const facts = extractMemoryFacts(message.content);
@@ -72,8 +71,9 @@ exports.sendMessage = async (req, res) => {
 
     const assistantMessage = { role: 'assistant', content: aiReply, timestamp: Date.now() };
     conversation.messages.push(assistantMessage);
-    await Conversation.updateConversation(conversation.id, req.userId, { messages: conversation.messages });
+    await Conversation.updateConversation(conversation.id, req.userId, { messages: conversation.messages, title: conversation.title });
 
+    // Garantir que a resposta inclui title
     res.json({ conversation, reply: assistantMessage });
   } catch (error) {
     console.error('Erro geral no chat:', error);

@@ -42,8 +42,13 @@ const updateConversation = async (id, userId, updates) => {
   const values = [];
   let idx = 1;
   for (const [key, value] of Object.entries(updates)) {
-    fields.push(`${key} = $${idx}`);
-    values.push(value);
+    if (key === 'messages') {
+      fields.push(`messages = $${idx}::jsonb`);
+      values.push(JSON.stringify(value));
+    } else {
+      fields.push(`${key} = $${idx}`);
+      values.push(value);
+    }
     idx++;
   }
   values.push(id, userId);

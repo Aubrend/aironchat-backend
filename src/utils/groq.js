@@ -1,20 +1,17 @@
 const axios = require('axios');
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-
 const getSystemPrompt = () => {
   return `You are AironChat, a professional AI assistant created by Luzembo Fernando.
-STRICT FORMATTING RULES:
-- NEVER use markdown asterisks (**) or hash symbols (#).
+IMPORTANT FORMATTING RULES:
+- NEVER use asterisks (*) or hash symbols (#).
 - NEVER use "##" headings.
 - NEVER use "---" horizontal rules.
 - Use emojis for structure and emphasis:
-  - "•" for list items.
+  - "•" for bullet points.
   - "💡" for tips.
   - "⚠️" for warnings.
   - "✅" for success.
   - "📌" for important notes.
-  - "🚀" for launching.
 - Keep responses clean and professional.
 - Use plain text with emojis and bullet points.
 - Avoid excessive punctuation like "???" or "!!!".
@@ -29,7 +26,7 @@ const sendMessageToGroq = async (messages, systemPrompt = '', apiKey) => {
   if (!key) throw new Error('GROQ_API_KEY não configurada');
 
   const response = await axios.post(
-    GROQ_API_URL,
+    'https://api.groq.com/openai/v1/chat/completions',
     {
       model: 'groq/compound',
       messages: [
@@ -38,18 +35,12 @@ const sendMessageToGroq = async (messages, systemPrompt = '', apiKey) => {
       ],
       temperature: 0.7,
       max_tokens: 4096,
-      top_p: 1,
-      stream: false,
     },
     {
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       timeout: 120000,
     }
   );
-
   return response.data.choices[0].message.content;
 };
 

@@ -1,20 +1,11 @@
 const multer = require('multer');
-const path = require('path');
-
-// pdf-parse tem um bug ao ser required diretamente; usar caminho interno
-let pdfParse;
-try { pdfParse = require('pdf-parse/lib/pdf-parse.js'); }
-catch { pdfParse = require('pdf-parse'); }
-
-let mammoth;
-try { mammoth = require('mammoth'); } catch { mammoth = null; }
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-const MAX_TEXT = 60000; // ~60 KB de texto extraído
+const MAX_TEXT = 60000;
 
 async function extractText(file) {
   const name = (file.originalname || '').toLowerCase();
@@ -22,13 +13,18 @@ async function extractText(file) {
 
   // PDF
   if (name.endsWith('.pdf') || mime === 'application/pdf') {
+    let pdfParse;
+    try { pdfParse = require('pdf-parse/lib/pdf-parse.js'); }
+    catch { pdfParse = require('pdf-parse'); }
     const data = await pdfParse(file.buffer);
     return (data.text || '').trim();
   }
 
   // DOCX
   if (name.endsWith('.docx') || mime.includes('wordprocessingml')) {
-    if (!mammoth) throw new Error('Suporte DOCX indisponível no servidor');
+    let mammoth;
+    try { mammoth = require('mammoth'); }
+    catch { throw new Error('Suporte DOCX indisponível no servidor'); }
     const result = await mammoth.extractRawText({ buffer: file.buffer });
     return (result.value || '').trim();
   }
@@ -74,7 +70,7 @@ exports.upload = [
         text: finalText,
       });
     } catch (err) {
-      console.error('Erro no upload de documento:', err);
+      console.error('Erro no upload:', err);
       res.status(500).json({ error: 'Erro ao processar documento' });
     }
   },

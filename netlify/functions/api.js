@@ -1,8 +1,3 @@
-// AironChat Backend - Netlify Function
-// NOTA: As rotas sÃƒÂ£o registadas com prefixo /api porque o Netlify
-// redireciona /api/* para /.netlify/functions/api/:splat, e o
-// serverless-http entrega o path completo (ex: /.netlify/functions/api/health).
-// Registar com /api garante que o Express encontra as rotas.
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
@@ -14,21 +9,15 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
-// Health check (COM prefixo /api)
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'aironchat-backend', platform: 'netlify' });
-});
-
-// Debug (COM prefixo /api)
+// Debug
 app.get('/api/debug', (req, res) => {
   res.json({
     platform: 'netlify',
     originalUrl: req.originalUrl,
     url: req.url,
-    path: req.path,
     env: {
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       hasJwtSecret: !!process.env.JWT_SECRET,
@@ -38,45 +27,54 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-// Rota info (COM prefixo /api)
+// Health
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'aironchat-backend', platform: 'netlify' });
+});
+
+// Root
 app.get('/api', (req, res) => {
   res.json({ message: 'AironChat API rodando!', platform: 'netlify' });
 });
 
-// Importar rotas (COM prefixo /api)
-try {
-  const authRoutes = require('../../src/routes/auth');
-  const chatRoutes = require('../../src/routes/chat');
-  const conversationRoutes = require('../../src/routes/conversations');
-  const adminRoutes = require('../../src/routes/admin');
-  const documentRoutes = require('../../src/routes/documents');
-  const codeRoutes = require('../../src/routes/code');
+// ── Carregamento individual das rotas (defensivo) ──
+const loadStatus = {};
 
-  app.use('/api/auth', authRoutes);
-  app.use('/api/chat', chatRoutes);
-  app.use('/api/conversations', conversationRoutes);
-  app.use('/api/admin', adminRoutes);
-  app.use('/api/documents', documentRoutes);
-  app.use('/api/code', codeRoutes);
-
-  console.log('Rotas carregadas com sucesso');
-} catch (err) {
-  console.error('Erro ao carregar rotas:', err.message);
+function loadRoute(mountPath, modulePath) {
+  try {
+    const router = require(modulePath);
+    app.use(mountPath, router);
+    loadStatus[mountPath] = 'OK';
+  } catch (err) {
+    loadStatus[mountPath] = `ERRO: ${err.message}`;
+    console.error(`Erro ao carregar ${mountPath}:`, err.message);
+  }
 }
 
-// Handler 404
+loadRoute('/api/auth', '../../src/routes/auth');
+loadRoute('/api/chat', '../../src/routes/chat');
+loadRoute('/api/conversations', '../../src/routes/conversations');
+loadRoute('/api/admin', '../../src/routes/admin');
+loadRoute('/api/documents', '../../src/routes/documents');
+
+// Expor loadStatus no /api/debug
+app.get('/api/load-status', (req, res) => {
+  res.json(loadStatus);
+});
+
+// 404
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Rota nÃƒÂ£o encontrada',
+    error: 'Rota não encontrada',
     path: req.originalUrl,
-    url: req.url,
+    loadStatus,
   });
 });
 
-// Handler de erros
+// Erros
 app.use((err, req, res, next) => {
   console.error('Erro no servidor:', err);
-  res.status(err.status || 500).json({ error: err.message || 'Erro interno do servidor' });
+  res.status(err.status || 500).json({ error: err.message || 'Erro interno' });
 });
 
 module.exports.handler = serverless(app);

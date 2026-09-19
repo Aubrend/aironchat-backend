@@ -5,7 +5,7 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["express", "pg", "bcryptjs", "jsonwebtoken", "cors", "dotenv", "axios"]
+  external_node_modules = ["express", "pg", "bcryptjs", "jsonwebtoken", "cors", "dotenv", "axios", "multer", "pdf-parse", "mammoth"]
   included_files = ["src/**"]
 
 [build.environment]

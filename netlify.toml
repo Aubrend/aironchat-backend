@@ -1,11 +1,12 @@
 [build]
   command = "echo Building Functions"
   functions = "netlify/functions"
-  publish = "."
+  publish = "public"
 
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["express", "pg", "bcryptjs", "jsonwebtoken", "cors", "dotenv", "axios"]
+  included_files = ["src/**"]
 
 [build.environment]
   NODE_VERSION = "20"

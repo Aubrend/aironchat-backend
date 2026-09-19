@@ -7,15 +7,26 @@ const upload = multer({
 
 const MAX_TEXT = 60000;
 
+// Carrega pdf-parse de forma robusta (o pacote exporta de maneiras diferentes)
+function getPdfParser() {
+  let mod;
+  try { mod = require('pdf-parse/lib/pdf-parse.js'); }
+  catch { mod = require('pdf-parse'); }
+
+  // Pode ser: função direta, ou { default: fn }, ou { pdf: fn }
+  if (typeof mod === 'function') return mod;
+  if (mod && typeof mod.default === 'function') return mod.default;
+  if (mod && typeof mod.pdf === 'function') return mod.pdf;
+  throw new Error('pdf-parse não devolveu uma função válida');
+}
+
 async function extractText(file) {
   const name = (file.originalname || '').toLowerCase();
   const mime = file.mimetype || '';
 
   // PDF
   if (name.endsWith('.pdf') || mime === 'application/pdf') {
-    let pdfParse;
-    try { pdfParse = require('pdf-parse/lib/pdf-parse.js'); }
-    catch { pdfParse = require('pdf-parse'); }
+    const pdfParse = getPdfParser();
     const data = await pdfParse(file.buffer);
     return (data.text || '').trim();
   }
@@ -51,6 +62,7 @@ exports.upload = [
       try {
         text = await extractText(req.file);
       } catch (err) {
+        console.error('extractText erro:', err.message);
         return res.status(400).json({ error: err.message });
       }
 

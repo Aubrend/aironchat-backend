@@ -1,5 +1,5 @@
 // AironChat Backend - Netlify Function
-// NOTA: As rotas são registadas com prefixo /api porque o Netlify
+// NOTA: As rotas sÃ£o registadas com prefixo /api porque o Netlify
 // redireciona /api/* para /.netlify/functions/api/:splat, e o
 // serverless-http entrega o path completo (ex: /.netlify/functions/api/health).
 // Registar com /api garante que o Express encontra as rotas.
@@ -49,11 +49,13 @@ try {
   const chatRoutes = require('../../src/routes/chat');
   const conversationRoutes = require('../../src/routes/conversations');
   const adminRoutes = require('../../src/routes/admin');
+  const codeRoutes = require('../../src/routes/code');
 
   app.use('/api/auth', authRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/conversations', conversationRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/code', codeRoutes);
 
   console.log('Rotas carregadas com sucesso');
 } catch (err) {
@@ -63,7 +65,7 @@ try {
 // Handler 404
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Rota não encontrada',
+    error: 'Rota nÃ£o encontrada',
     path: req.originalUrl,
     url: req.url,
   });

@@ -1,6 +1,12 @@
+// ==============================================
+// AironChat Backend — Servidor local de desenvolvimento
+// ==============================================
+// Este ficheiro é usado APENAS para desenvolvimento local (npm start / npm run dev).
+// Em produção, o backend corre como função serverless no Netlify:
+//   → netlify/functions/api.js
+// ==============================================
 const express = require('express');
 const cors = require('cors');
-const serverless = require('serverless-http');
 require('dotenv').config();
 
 const authRoutes = require('../src/routes/auth');
@@ -11,32 +17,37 @@ const adminRoutes = require('../src/routes/admin');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+  res.json({ status: 'ok', platform: 'local-dev', time: new Date().toISOString() });
 });
 
+// Rotas (mesmo prefixo que em produção no Netlify)
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
-  res.json({ message: 'AironChat API rodando!' });
+  res.json({ message: 'AironChat API — local dev', environment: process.env.NODE_ENV || 'development' });
 });
 
-// Tratamento de erros
+// 404
+app.use((req, res) => {
+  res.status(404).json({ error: 'Rota não encontrada', path: req.originalUrl });
+});
+
+// Erros
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// Para desenvolvimento local
-if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-  });
-}
-
-module.exports = serverless(app);
+// Arrancar servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor local rodando em http://localhost:${PORT}`);
+  console.log(`   Health: http://localhost:${PORT}/api/health`);
+});

@@ -1,4 +1,31 @@
+# Dependências
 node_modules/
+
+# Ambiente
 .env
+.env.local
+.env.production
+.env.development
 atlas-credentials.env
-*.env
+
+# Build
+dist/
+build/
+.vercel/
+.netlify/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Cache
+.cache/
+coverage/

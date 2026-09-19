@@ -1,11 +1,23 @@
-﻿[build]
-  command = "npm install"
-  functions = "api"
+[build]
+  command = "echo Building Functions"
+  functions = "netlify/functions"
+  publish = "."
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["express"]
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/index/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = false
+
+[build.environment]
+  NODE_VERSION = "20"

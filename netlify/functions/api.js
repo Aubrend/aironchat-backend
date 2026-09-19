@@ -1,4 +1,8 @@
 // AironChat Backend - Netlify Function
+// NOTA: As rotas são registadas com prefixo /api porque o Netlify
+// redireciona /api/* para /.netlify/functions/api/:splat, e o
+// serverless-http entrega o path completo (ex: /.netlify/functions/api/health).
+// Registar com /api garante que o Express encontra as rotas.
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
@@ -13,21 +17,13 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Registar tentativas de carregamento para diagnóstico
-const loadStatus = {};
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'aironchat-backend',
-    platform: 'netlify',
-    loadStatus,
-  });
+// Health check (COM prefixo /api)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'aironchat-backend', platform: 'netlify' });
 });
 
-// Debug
-app.get('/debug', (req, res) => {
+// Debug (COM prefixo /api)
+app.get('/api/debug', (req, res) => {
   res.json({
     platform: 'netlify',
     originalUrl: req.originalUrl,
@@ -39,88 +35,44 @@ app.get('/debug', (req, res) => {
       hasGroqKey: !!process.env.GROQ_API_KEY,
       nodeEnv: process.env.NODE_ENV,
     },
-    loadStatus,
   });
 });
 
-// Tentar carregar cada rota individualmente
+// Rota info (COM prefixo /api)
+app.get('/api', (req, res) => {
+  res.json({ message: 'AironChat API rodando!', platform: 'netlify' });
+});
+
+// Importar rotas (COM prefixo /api)
 try {
   const authRoutes = require('../../src/routes/auth');
-  app.use('/auth', authRoutes);
-  loadStatus.auth = 'OK';
-} catch (err) {
-  loadStatus.auth = `ERRO: ${err.message}`;
-  console.error('Erro a carregar auth:', err);
-}
-
-try {
   const chatRoutes = require('../../src/routes/chat');
-  app.use('/chat', chatRoutes);
-  loadStatus.chat = 'OK';
-} catch (err) {
-  loadStatus.chat = `ERRO: ${err.message}`;
-  console.error('Erro a carregar chat:', err);
-}
-
-try {
   const conversationRoutes = require('../../src/routes/conversations');
-  app.use('/conversations', conversationRoutes);
-  loadStatus.conversations = 'OK';
-} catch (err) {
-  loadStatus.conversations = `ERRO: ${err.message}`;
-  console.error('Erro a carregar conversations:', err);
-}
-
-try {
   const adminRoutes = require('../../src/routes/admin');
-  app.use('/admin', adminRoutes);
-  loadStatus.admin = 'OK';
+
+  app.use('/api/auth', authRoutes);
+  app.use('/api/chat', chatRoutes);
+  app.use('/api/conversations', conversationRoutes);
+  app.use('/api/admin', adminRoutes);
+
+  console.log('Rotas carregadas com sucesso');
 } catch (err) {
-  loadStatus.admin = `ERRO: ${err.message}`;
-  console.error('Erro a carregar admin:', err);
+  console.error('Erro ao carregar rotas:', err.message);
 }
 
-// Rota info
-app.get('/', (req, res) => {
-  res.json({
-    message: 'AironChat API rodando!',
-    platform: 'netlify',
-    loadStatus,
-  });
-});
-
-// 404
+// Handler 404
 app.use((req, res) => {
   res.status(404).json({
     error: 'Rota não encontrada',
     path: req.originalUrl,
-    loadStatus,
+    url: req.url,
   });
 });
 
-// Handler de erros do Express
+// Handler de erros
 app.use((err, req, res, next) => {
-  console.error('Erro no Express:', err);
-  res.status(500).json({ error: err.message, stack: err.stack });
+  console.error('Erro no servidor:', err);
+  res.status(err.status || 500).json({ error: err.message || 'Erro interno do servidor' });
 });
 
-// Wrapper que captura erros de serverless-http
-const serverlessHandler = serverless(app);
-
-module.exports.handler = async (event, context) => {
-  try {
-    return await serverlessHandler(event, context);
-  } catch (err) {
-    console.error('Erro no handler serverless:', err);
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        error: 'Erro no handler serverless',
-        message: err.message,
-        stack: err.stack,
-        loadStatus,
-      }),
-    };
-  }
-};
+module.exports.handler = serverless(app);
